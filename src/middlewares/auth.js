@@ -18,7 +18,7 @@ exports.authenticate = asyncHandler(async (req, res, next) => {
   // Se consulta el usuario en cada request: así desactivar a alguien corta su acceso de inmediato.
   const user = await prisma.usuario.findUnique({
     where: { id: Number(payload.sub) },
-    select: { id: true, nombre: true, email: true, rol: true, activo: true },
+    select: { id: true, nombre: true, email: true, rol: true, activo: true, clienteId: true, profesionalId: true },
   });
   if (!user || !user.activo) throw new AppError(401, 'Usuario inexistente o desactivado', 'TOKEN_INVALIDO');
 

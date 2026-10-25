@@ -1,4 +1,5 @@
-﻿const express = require('express');
+const path = require('path');
+const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -15,14 +16,21 @@ app.disable('x-powered-by');
 app.get('/api/docs.json', (req, res) => res.json(openapi));
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: 'API Nexora' }));
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    // En desarrollo (http) no se fuerza el upgrade a https; en producción sí.
+    directives: { 'upgrade-insecure-requests': env.isProd ? [] : null },
+  },
+}));
 app.use(cors({ origin: env.corsOrigins }));
 if (!env.isTest) app.use(morgan(env.isProd ? 'combined' : 'dev'));
 app.use(express.json({ limit: '100kb' }));
 
+// Frontend (carpeta /public) en la raíz; la API sigue bajo /api.
+app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/api', routes);
 app.use(notFound);
 app.use(errorHandler);
 
 module.exports = app;
-

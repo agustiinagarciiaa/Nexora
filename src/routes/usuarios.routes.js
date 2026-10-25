@@ -7,17 +7,25 @@ const env = require('../config/env');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { validate } = require('../middlewares/validate');
-const { idParams, texto, alMenosUno, boolQuery } = require('./common');
+const { id, idParams, texto, alMenosUno, boolQuery } = require('./common');
 const { passwordSchema } = require('./auth.routes');
 
-const ROLES = ['ADMIN', 'RECEPCION'];
-const SELECT = { id: true, nombre: true, email: true, rol: true, activo: true, creadoEn: true };
+const ROLES = ['ADMIN', 'RECEPCION', 'PROFESIONAL', 'CLIENTE'];
+const SELECT = { id: true, nombre: true, email: true, rol: true, activo: true, clienteId: true, profesionalId: true, creadoEn: true };
 
 const crear = z.object({
   nombre: texto(100),
   email: z.string().trim().toLowerCase().email().max(190),
   password: passwordSchema,
   rol: z.enum(ROLES).default('RECEPCION'),
+  clienteId: id.optional(),
+  profesionalId: id.optional(),
+}).superRefine((b, ctx) => {
+  // PROFESIONAL y CLIENTE deben estar vinculados a su ficha; el resto, a ninguna.
+  if (b.rol === 'PROFESIONAL' && !b.profesionalId) ctx.addIssue({ code: 'custom', path: ['profesionalId'], message: 'Obligatorio para el rol PROFESIONAL' });
+  if (b.rol === 'CLIENTE' && !b.clienteId) ctx.addIssue({ code: 'custom', path: ['clienteId'], message: 'Obligatorio para el rol CLIENTE' });
+  if (b.rol !== 'PROFESIONAL' && b.profesionalId) ctx.addIssue({ code: 'custom', path: ['profesionalId'], message: 'Solo para el rol PROFESIONAL' });
+  if (b.rol !== 'CLIENTE' && b.clienteId) ctx.addIssue({ code: 'custom', path: ['clienteId'], message: 'Solo para el rol CLIENTE' });
 });
 const actualizar = alMenosUno(z.object({
   nombre: texto(100),

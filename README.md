@@ -2,7 +2,7 @@
 
 Backend REST en **Node.js + Express + Prisma + SQL Server** para gestionar una estética integral:
 clientes, profesionales, servicios y categorías, horarios, turnos, pagos y usuarios administrativos.
-Solo backend: el frontend se conecta después a estos endpoints.
+El frontend (portada pública NEXORA + panel interno) vive en `public/` y se sirve desde la raíz.
 
 ## Puesta en marcha
 
@@ -32,6 +32,20 @@ Cubren: autenticación y roles, catálogo (categorías/servicios/profesionales/h
 reserva de turnos (servicio no ofrecido, fuera de horario, superposición, concurrencia, reprogramación),
 estados, pagos (parcial, exceso, anulación, saldo) y utilidades de fecha.
 
+## Roles
+
+`ADMIN` y `RECEPCION` (personal): gestión completa (usuarios solo ADMIN). `PROFESIONAL`: ve y gestiona su agenda (`/mi/turnos`);
+el admin crea su usuario vinculándolo a su ficha con `profesionalId` (`POST /usuarios`). `CLIENTE`: se registra solo desde la web,
+reserva y cancela sus turnos. El id de cliente/profesional sale siempre del token, nunca del cuerpo de la petición.
+Clientes y profesionales no pueden usar `/clientes`, `/turnos`, `/pagos`, `/profesionales`, `/servicios` ni `/categorias` (403).
+Tras actualizar el esquema ejecutá: `npx prisma migrate dev --name roles_cliente_profesional`.
+
+## Frontend (`public/`)
+
+Sin build: HTML + CSS + JS puro. Rutas por hash: `#/` portada pública · `#/ingresar` acceso del equipo · `#/panel/agenda|nuevo|clientes`.
+La portada lee solo `/api/publico/*`; "Reservar" lleva al flujo real de **Nuevo turno** del panel (requiere login del equipo).
+Las fotografías son opcionales: ver `public/img/README.md`.
+
 ## Estructura
 
 ```
@@ -58,7 +72,9 @@ propios opcionales) · `Profesional 1—N Horario` · `Cliente/Profesional/Servi
 | Recurso | Endpoints | Quién |
 |---|---|---|
 | Sistema | `GET /health` | público |
-| Auth | `POST /auth/login`, `GET /auth/me`, `POST /auth/cambiar-password` | login público |
+| Catálogo público | `GET /publico/categorias`, `GET /publico/profesionales` (solo activos, sin email/teléfono/notas, solo lectura) | público |
+| Auth | `POST /auth/login`, `POST /auth/registro` (crea cliente + cuenta CLIENTE), `GET /auth/me`, `POST /auth/cambiar-password` | login y registro públicos |
+| Autoservicio | `GET/POST /mi/turnos`, `PATCH /mi/turnos/:id/cancelar` (CLIENTE) · `PATCH /mi/turnos/:id/estado` (PROFESIONAL) | CLIENTE / PROFESIONAL, solo sus datos |
 | Usuarios | CRUD `/usuarios` | ADMIN |
 | Categorías | `GET` (todos) · `POST/PATCH/DELETE /categorias` | escritura ADMIN |
 | Servicios | CRUD `/servicios`, `GET /servicios/:id/profesionales` | escritura ADMIN |

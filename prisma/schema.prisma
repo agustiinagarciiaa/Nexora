@@ -19,10 +19,19 @@ model Usuario {
   nombre        String   @db.NVarChar(100)
   email         String   @unique @db.NVarChar(190)
   passwordHash  String   @db.NVarChar(100)
-  rol           String   @default("RECEPCION") @db.NVarChar(20) // ADMIN | RECEPCION
+  rol           String   @default("RECEPCION") @db.NVarChar(20) // ADMIN | RECEPCION | PROFESIONAL | CLIENTE
   activo        Boolean  @default(true)
+  // Vínculo con la ficha: CLIENTE -> clienteId, PROFESIONAL -> profesionalId (sin @unique: SQL Server solo admite un NULL por índice único).
+  clienteId     Int?
+  profesionalId Int?
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
+
+  cliente     Cliente?     @relation(fields: [clienteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profesional Profesional? @relation(fields: [profesionalId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([clienteId])
+  @@index([profesionalId])
 }
 
 model Categoria {
@@ -69,6 +78,7 @@ model Profesional {
   servicios ProfesionalServicio[]
   horarios  Horario[]
   turnos    Turno[]
+  usuarios  Usuario[]
 }
 
 // Qué servicios realiza cada profesional (con precio/duración propios opcionales).
@@ -111,7 +121,8 @@ model Cliente {
   creadoEn        DateTime  @default(now())
   actualizadoEn   DateTime  @updatedAt
 
-  turnos Turno[]
+  turnos   Turno[]
+  usuarios Usuario[]
 
   @@index([apellido, nombre])
   @@index([telefono])
