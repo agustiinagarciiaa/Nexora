@@ -1,0 +1,159 @@
+// Esquema para SQL Server.
+// Notas de compatibilidad (Prisma + SQL Server):
+//  - No hay `enum` nativo ni listas escalares: los estados se guardan como String y se validan con Zod.
+//  - Los campos con @unique deben limitar su largo (índice de hasta 900 bytes): se usa @db.NVarChar(n).
+//  - SQL Server no admite `Restrict`: se usa `NoAction`.
+//  - Se evitan @unique sobre columnas opcionales (SQL Server solo admite un NULL por índice único).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.NVarChar(100)
+  email         String   @unique @db.NVarChar(190)
+  passwordHash  String   @db.NVarChar(100)
+  rol           String   @default("RECEPCION") @db.NVarChar(20) // ADMIN | RECEPCION
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+}
+
+model Categoria {
+  id            Int        @id @default(autoincrement())
+  nombre        String     @unique @db.NVarChar(100)
+  descripcion   String?    @db.NVarChar(500)
+  orden         Int        @default(0)
+  activa        Boolean    @default(true)
+  creadoEn      DateTime   @default(now())
+  actualizadoEn DateTime   @updatedAt
+  servicios     Servicio[]
+}
+
+model Servicio {
+  id            Int      @id @default(autoincrement())
+  categoriaId   Int
+  nombre        String   @db.NVarChar(150)
+  descripcion   String?  @db.NVarChar(500)
+  duracionMin   Int
+  precio        Decimal  @db.Decimal(12, 2)
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  categoria     Categoria             @relation(fields: [categoriaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profesionales ProfesionalServicio[]
+  turnos        Turno[]
+
+  @@unique([categoriaId, nombre])
+  @@index([categoriaId])
+}
+
+model Profesional {
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.NVarChar(100)
+  apellido      String   @db.NVarChar(100)
+  email         String?  @db.NVarChar(190)
+  telefono      String?  @db.NVarChar(30)
+  notas         String?  @db.NVarChar(500)
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  servicios ProfesionalServicio[]
+  horarios  Horario[]
+  turnos    Turno[]
+}
+
+// Qué servicios realiza cada profesional (con precio/duración propios opcionales).
+model ProfesionalServicio {
+  profesionalId       Int
+  servicioId          Int
+  precioEspecial      Decimal? @db.Decimal(12, 2)
+  duracionEspecialMin Int?
+
+  profesional Profesional @relation(fields: [profesionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servicio    Servicio    @relation(fields: [servicioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([profesionalId, servicioId])
+  @@index([servicioId])
+}
+
+// Franjas de atención semanales. diaSemana: 0=domingo ... 6=sábado. Horas "HH:mm" en hora local del negocio.
+model Horario {
+  id            Int    @id @default(autoincrement())
+  profesionalId Int
+  diaSemana     Int
+  horaInicio    String @db.NVarChar(5)
+  horaFin       String @db.NVarChar(5)
+
+  profesional Profesional @relation(fields: [profesionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([profesionalId, diaSemana])
+}
+
+model Cliente {
+  id              Int       @id @default(autoincrement())
+  nombre          String    @db.NVarChar(100)
+  apellido        String    @db.NVarChar(100)
+  telefono        String    @db.NVarChar(30)
+  email           String?   @db.NVarChar(190)
+  documento       String?   @db.NVarChar(20)
+  fechaNacimiento DateTime? @db.Date
+  notas           String?   @db.NVarChar(500)
+  activo          Boolean   @default(true)
+  creadoEn        DateTime  @default(now())
+  actualizadoEn   DateTime  @updatedAt
+
+  turnos Turno[]
+
+  @@index([apellido, nombre])
+  @@index([telefono])
+}
+
+model Turno {
+  id            Int      @id @default(autoincrement())
+  clienteId     Int
+  profesionalId Int
+  servicioId    Int
+  inicio        DateTime // UTC
+  fin           DateTime // UTC
+  duracionMin   Int
+  precio        Decimal  @db.Decimal(12, 2) // precio congelado al momento de reservar
+  estado        String   @default("PENDIENTE") @db.NVarChar(20) // PENDIENTE | CONFIRMADO | COMPLETADO | CANCELADO | AUSENTE
+  notas         String?  @db.NVarChar(500)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  cliente     Cliente     @relation(fields: [clienteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profesional Profesional @relation(fields: [profesionalId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  servicio    Servicio    @relation(fields: [servicioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pagos       Pago[]
+
+  @@index([profesionalId, inicio])
+  @@index([clienteId])
+  @@index([servicioId])
+}
+
+model Pago {
+  id              Int      @id @default(autoincrement())
+  turnoId         Int
+  monto           Decimal  @db.Decimal(12, 2)
+  metodo          String   @db.NVarChar(20) // EFECTIVO | TRANSFERENCIA | DEBITO | CREDITO | MERCADOPAGO | OTRO
+  estado          String   @default("REGISTRADO") @db.NVarChar(20) // REGISTRADO | ANULADO
+  referencia      String?  @db.NVarChar(100)
+  motivoAnulacion String?  @db.NVarChar(300)
+  fecha           DateTime @default(now())
+  creadoEn        DateTime @default(now())
+
+  turno Turno @relation(fields: [turnoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([turnoId])
+  @@index([fecha])
+}

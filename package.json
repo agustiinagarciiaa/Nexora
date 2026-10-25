@@ -1,0 +1,43 @@
+{
+  "name": "estetica-backend",
+  "version": "1.0.0",
+  "description": "Backend REST para la gestión de una estética integral (Node.js, Express, Prisma, SQL Server)",
+  "main": "src/server.js",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "prisma:generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "node prisma/seed.js",
+    "test:prepare": "node scripts/prepare-test-db.js",
+    "test": "jest --runInBand --forceExit"
+  },
+  "prisma": { "seed": "node prisma/seed.js" },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.0",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0",
+    "prisma": "^6.16.0",
+    "supertest": "^7.0.0"
+  }
+}
