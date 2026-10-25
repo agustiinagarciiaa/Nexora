@@ -1,4 +1,4 @@
-# API Estética Integral (backend)
+# API Estética Integral
 
 Backend REST en **Node.js + Express + Prisma + SQL Server** para gestionar una estética integral:
 clientes, profesionales, servicios y categorías, horarios, turnos, pagos y usuarios administrativos.
